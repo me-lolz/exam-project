@@ -1,0 +1,13 @@
+{
+  "name": "auth-website",
+  "version": "1.0.0",
+  "description": "Secure authentication website",
+  "scripts": {
+    "dev": "vercel dev"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
+    "crypto": "^1.0.1"
+  }
+}
