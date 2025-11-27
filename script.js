@@ -1,41 +1,6 @@
 class AuthClient {
     constructor() {
-        this.encryptionKey = this.generateEncryptionKey();
         this.currentToken = null;
-    }
-
-    generateEncryptionKey() {
-        return crypto.getRandomValues(new Uint8Array(32));
-    }
-
-    async encryptData(data) {
-        const encoder = new TextEncoder();
-        const dataBuffer = encoder.encode(JSON.stringify(data));
-        
-        const iv = crypto.getRandomValues(new Uint8Array(12));
-        const key = await crypto.subtle.importKey(
-            'raw',
-            this.encryptionKey,
-            'AES-GCM',
-            false,
-            ['encrypt']
-        );
-
-        const encryptedBuffer = await crypto.subtle.encrypt(
-            {
-                name: 'AES-GCM',
-                iv: iv
-            },
-            key,
-            dataBuffer
-        );
-
-        const encryptedArray = new Uint8Array(encryptedBuffer);
-        const result = new Uint8Array(iv.length + encryptedArray.length);
-        result.set(iv);
-        result.set(encryptedArray, iv.length);
-
-        return btoa(String.fromCharCode(...result));
     }
 
     async hashPassword(password) {
@@ -45,16 +10,14 @@ class AuthClient {
         return btoa(String.fromCharCode(...new Uint8Array(hash)));
     }
 
-    async sendEncryptedRequest(endpoint, data) {
+    async sendRequest(endpoint, data) {
         try {
-            const encryptedData = await this.encryptData(data);
-            
             const response = await fetch(`/api/${endpoint}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ data: encryptedData })
+                body: JSON.stringify(data)
             });
 
             const result = await response.json();
@@ -65,25 +28,20 @@ class AuthClient {
 
             return result;
         } catch (error) {
-            throw new Error(`Network error: ${error.message}`);
+            throw new Error(error.message);
         }
     }
 
     storeToken(token) {
         this.currentToken = token;
-        localStorage.setItem('authToken', token);
     }
 
     getToken() {
-        if (!this.currentToken) {
-            this.currentToken = localStorage.getItem('authToken');
-        }
         return this.currentToken;
     }
 
     clearToken() {
         this.currentToken = null;
-        localStorage.removeItem('authToken');
     }
 
     async verifyToken() {
@@ -116,7 +74,10 @@ function showTab(tabName) {
         button.classList.remove('active');
     });
 
-    document.getElementById(tabName + 'Form').classList.add('active');
+    const form = document.getElementById(tabName + 'Form');
+    form.classList.add('active');
+    form.style.display = 'block';
+    
     event.target.classList.add('active');
 }
 
@@ -140,7 +101,7 @@ async function handleLogin(event) {
     try {
         const hashedPassword = await authClient.hashPassword(password);
         
-        const result = await authClient.sendEncryptedRequest('login', {
+        const result = await authClient.sendRequest('login', {
             username,
             password: hashedPassword
         });
@@ -163,7 +124,7 @@ async function handleRegister(event) {
     try {
         const hashedPassword = await authClient.hashPassword(password);
         
-        const result = await authClient.sendEncryptedRequest('register', {
+        const result = await authClient.sendRequest('register', {
             name,
             username,
             password: hashedPassword
@@ -184,27 +145,20 @@ function showUserInfo(user) {
     document.querySelectorAll('.auth-form').forEach(form => {
         form.style.display = 'none';
     });
+    document.querySelector('.tabs').style.display = 'none';
 }
 
 function logout() {
     authClient.clearToken();
     document.getElementById('userInfo').classList.add('hidden');
-    showTab('login');
+    document.querySelector('.tabs').style.display = 'flex';
+    document.getElementById('loginForm').style.display = 'block';
+    document.getElementById('loginForm').classList.add('active');
     document.getElementById('loginForm').reset();
     document.getElementById('registerForm').reset();
-}
-
-async function checkAuthStatus() {
-    const isAuthenticated = await authClient.verifyToken();
-    if (isAuthenticated) {
-        document.getElementById('userInfo').classList.remove('hidden');
-        document.querySelectorAll('.auth-form').forEach(form => {
-            form.style.display = 'none';
-        });
-    }
+    document.querySelectorAll('.tab-button')[0].classList.add('active');
+    showMessage('Logged out successfully', 'success');
 }
 
 document.getElementById('loginForm').addEventListener('submit', handleLogin);
 document.getElementById('registerForm').addEventListener('submit', handleRegister);
-
-document.addEventListener('DOMContentLoaded', checkAuthStatus);
