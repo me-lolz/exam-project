@@ -1,19 +1,22 @@
 const Database = require('../lib/database');
-const { decryptData } = require('../lib/crypto');
 
 module.exports = async (req, res) => {
+    // Enable CORS
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+    res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
+
+    if (req.method === 'OPTIONS') {
+        return res.status(200).end();
+    }
+
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method not allowed' });
     }
 
     try {
-        const { data } = req.body;
-        if (!data) {
-            return res.status(400).json({ error: 'No data provided' });
-        }
-
-        const decryptedData = decryptData(data);
-        const { username, password } = decryptedData;
+        const { username, password } = req.body;
 
         if (!username || !password) {
             return res.status(400).json({ error: 'Missing username or password' });
